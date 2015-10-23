@@ -62,17 +62,17 @@ class InfoAttribute(models.Model):
         # 实体的model
         model = self.content_type.model_class()
         # 给model增加字段
-        base = model._meta.concreate_model
+        base = model._meta.concrete_model
         attr_name = '{}_ptr'.format( base._meta.model_name )
         field = OneToOneField(
                 base,
                 name = attr_name,
-                auto_create = True,
+                auto_created = True,
                 parent_link = True,
                 )
         model.add_to_class(self.field_name, field)
         model._meta.parents[base] = field
-        pass
+        return model
 
     def set_InfoAttribute(self, obj, field_name, field_type):
         '设置实体的属性'
