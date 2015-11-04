@@ -3,7 +3,60 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models.fields.related import OneToOneField
+from django.utils import six
 from django.utils.translation import ugettext_lazy as _
+
+
+RECURSIVE_RELATIONSHIP_CONSTANT = 'self'
+
+
+class EAVObjectRel():
+    def __init__(
+            self, field, to, related_name=None, limit_choices_to=None,
+            parent_link=False, on_delete=None, related_query_name=None,
+            ):
+        try:
+            to._meta
+        except AttributeError:  # to._meta doesn't exist, so it must be RECURSIVE_RELATIONSHIP_CONSTANT
+            assert isinstance(to, six.string_types), "'to' must be either a model, a model name or the string %r" % RECURSIVE_RELATIONSHIP_CONSTANT
+
+        self.field = field
+        self.to = to
+        self.related_name = related_name
+        self.related_query_name = related_query_name
+        self.limit_choices_to = {} if limit_choices_to is None else limit_choices_to
+        self.multiple = True
+        self.parent_link = parent_link
+        self.on_delete = on_delete
+
+    def is_hidden(self):
+        "Should the related object be hidden?"
+        return self.related_name and self.related_name[-1] == '+'
+
+    def get_joining_columns(self):
+        return self.field.get_reverse_joining_columns()
+
+    def get_extra_restriction(self, where_class, alias, related_alias):
+        return self.field.get_extra_restriction(where_class, related_alias, alias)
+
+    def set_field_name(self):
+        """
+        Sets the related field's name, this is not available until later stages
+        of app loading, so set_field_name is called from
+        set_attributes_from_rel()
+        """
+        # By default foreign object doesn't relate to any remote field (for
+        # example custom multicolumn joins currently have no remote field).
+        self.field_name = None
+
+
+
+class Model(models.Model):
+    '''
+    继承django的Model
+        还未想好，应该如何修改。
+    '''
+    pass
 
 
 class InfoTypeManager(models.Manager):
@@ -26,7 +79,7 @@ class InfoTypeManager(models.Manager):
                     )
 
 
-class InfoType(models.Model):
+class InfoType(Model):
     '实体的属性类型'
 
     # 属性类型的名称
@@ -40,7 +93,7 @@ class InfoType(models.Model):
         return self.name
 
 
-class InfoAttribute(models.Model):
+class InfoAttribute(Model):
     '实体的属性信息'
 
     # 实体的数据模型
@@ -82,7 +135,7 @@ class InfoAttribute(models.Model):
         self.content_type = o
 
 
-class TypeBase(models.Model):
+class TypeBase(Model):
     'eav类型的基类'
 
     # 实体_id
